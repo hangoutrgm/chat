@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Anonymous Chat v2.5</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        html, body {
+            height: 100% !important;
+            height: 100dvh !important;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .chat-bubble-text {
+            user-select: text;
+            -webkit-user-select: text;
+        }
+    </style>
+</head>
+<body id="app-body" class="bg-slate-900 text-slate-100 font-sans flex flex-col md:flex-row overflow-hidden">
+    <!-- Loading Screen -->
+<div id="loading-screen" class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-[9999]">
+
+    <div class="w-16 h-16 border-4 border-slate-700 border-t-emerald-500 rounded-full animate-spin"></div>
+
+    <h1 class="mt-6 text-2xl font-bold text-emerald-400">
+        Anonymous Chat
+    </h1>
+
+    <p id="loading-status" class="mt-2 text-sm text-slate-400">
+        Connecting...
+    </p>
+
+</div>
+
+    <div id="main-app-container" class="flex-1 flex flex-col md:flex-row w-full h-full overflow-hidden hidden">
+        <aside class="w-full md:w-64 bg-slate-800 border-b md:border-b-0 md:border-r border-slate-700 p-4 flex flex-row md:flex-col justify-between items-center md:items-stretch gap-4 flex-shrink-0 shadow-lg z-10">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl md:text-3xl">💬</span>
+                <h1 class="text-lg md:text-2xl font-bold tracking-tight text-emerald-400">ChatApp</h1>
+            </div>
+
+            <div class="flex flex-row md:flex-col items-center md:items-stretch gap-2.5 md:gap-4">
+                <div class="bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700/60 text-xs font-semibold flex items-center gap-2 whitespace-nowrap justify-center">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="user-count">1 online</span>
+                </div>
+                <button id="open-rename-btn" type="button" class="bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer shadow-sm">
+                    <div id="sidebar-avatar" class="w-5 h-5 rounded-full bg-slate-500 flex items-center justify-center overflow-hidden"></div>
+                    <span>Edit Profile</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col min-h-0 min-w-0 bg-slate-900 relative overflow-hidden">
+            
+            <div id="chat-box" class="flex-1 min-h-0 overflow-y-auto p-4 space-y-2 w-full max-w-4xl mx-auto scroll-smooth">
+                </div>
+
+            <div id="reaction-picker" class="fixed hidden bg-slate-800 border border-slate-700 rounded-full px-2 py-1 shadow-2xl flex gap-2 z-40 transition-all duration-150">
+                <button id="btn-react-👍" onclick="handlePickerSelection('👍')" class="w-8 h-8 flex items-center justify-center rounded-full text-base hover:scale-125 active:scale-95 transition cursor-pointer">👍</button>
+                <button id="btn-react-❤️" onclick="handlePickerSelection('❤️')" class="w-8 h-8 flex items-center justify-center rounded-full text-base hover:scale-125 active:scale-95 transition cursor-pointer">❤️</button>
+                <button id="btn-react-😂" onclick="handlePickerSelection('😂')" class="w-8 h-8 flex items-center justify-center rounded-full text-base hover:scale-125 active:scale-95 transition cursor-pointer">😂</button>
+            </div>
+
+            <footer class="bg-slate-800 border-t border-slate-700 p-3 md:p-4 w-full flex-shrink-0 pb-[calc(12px+env(safe-area-inset-bottom))] relative">
+                <div class="max-w-4xl mx-auto flex flex-col gap-2">
+                    
+                    <div id="image-preview-container" class="hidden relative self-start bg-slate-900/80 p-2 rounded-lg border border-slate-700 mb-1">
+                        <img id="image-preview" src="" class="max-h-24 max-w-xs rounded-md object-contain">
+                        <button id="cancel-image-btn" type="button" class="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-md cursor-pointer border border-slate-800">✕</button>
+                    </div>
+
+                    <div id="reply-preview" class="hidden bg-slate-900/60 border border-slate-700 rounded-lg p-2 flex justify-between items-center text-xs mb-1">
+                        <div class="flex flex-col min-w-0 border-l-2 border-emerald-500 pl-2">
+                            <span class="text-emerald-400 font-bold">Replying to <span id="reply-target-name">...</span></span>
+                            <p id="reply-target-text" class="text-slate-400 truncate text-[11px] mt-0.5">...</p>
+                        </div>
+                        <button id="cancel-reply-btn" type="button" class="text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded transition cursor-pointer font-semibold ml-3 flex-shrink-0 shadow-sm">Cancel</button>
+                    </div>
+
+                    <div class="text-[11px] text-slate-400 px-1 flex justify-between items-center gap-1.5">
+                        <div class="flex items-center gap-1.5">
+                            <span>Chatting as:</span>
+                            <span id="identity-tag" class="font-bold px-2 py-0.5 rounded text-slate-900 text-xs shadow-sm">...</span>
+                        </div>
+                        <span id="upload-counter" class="text-[9px] text-slate-500 font-semibold bg-slate-900 px-2 py-0.5 rounded border border-slate-700">Limits: 0/5 uploads today</span>
+                    </div>
+                    
+                    <form id="message-form" class="flex gap-2 relative">
+                        <label for="chat-image-input" class="bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center px-3 rounded-lg cursor-pointer transition active:scale-95 shadow-sm" title="Upload Image or GIF">
+                            🖼️
+                        </label>
+                        <input type="file" id="chat-image-input" accept="image/*" class="hidden">
+                        <input type="text" id="message-input" placeholder="Say something to the room..." maxlength="500" autocomplete="off" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm md:text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors min-w-0">
+                        <button type="submit" id="send-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 md:px-6 py-2 rounded-lg text-sm md:text-base transition-colors shadow-md active:scale-95 flex-shrink-0 cursor-pointer">Send</button>
+                    </form>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <div id="rename-modal" class="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-xl p-5 shadow-2xl flex flex-col gap-5">
+            <div>
+                <h3 class="text-base font-bold text-slate-100">Setup Anonymous Profile</h3>
+                <p class="text-xs text-slate-400">Choose your display name and an optional avatar.</p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="relative group cursor-pointer">
+                    <label for="modal-avatar-input" class="cursor-pointer">
+                        <div id="modal-avatar-preview" class="w-16 h-16 rounded-full bg-slate-700 border-2 border-slate-600 flex items-center justify-center overflow-hidden object-cover transition group-hover:border-emerald-500">
+                            <span class="text-xl">👤</span>
+                        </div>
+                        <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                            <span class="text-xs font-bold text-white">Upload</span>
+                        </div>
+                    </label>
+                    <input type="file" id="modal-avatar-input" accept="image/*" class="hidden">
+                </div>
+                
+                <div class="flex-1">
+                    <label class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1 block">Display Name</label>
+                    <input type="text" id="modal-nickname-input" maxlength="25" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-full">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 text-xs font-bold">
+                <button id="close-modal-btn" type="button" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors cursor-pointer">Cancel</button>
+                <button id="save-modal-btn" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-md active:scale-95 cursor-pointer">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-modal" class="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-xl p-5 shadow-2xl flex flex-col gap-4">
+            <div>
+                <h3 class="text-base font-bold text-slate-100">Edit Message</h3>
+            </div>
+            <textarea id="modal-edit-input" rows="3" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-full resize-none"></textarea>
+            <div class="flex justify-end gap-2 text-xs font-bold pt-2">
+                <button id="close-edit-btn" type="button" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors cursor-pointer">Cancel</button>
+                <button id="save-edit-btn" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-md active:scale-95 cursor-pointer">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push, set, update, onChildAdded, onChildChanged, onChildRemoved, onValue, serverTimestamp, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        // 1. ADD THIS NEW IMPORT FOR AUTHENTICATION
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // ADD YOUR FIREBASE CONFIG HERE
+        const firebaseConfig = {
+  apiKey: "AIzaSyBbYuObR-HRl4ANTiHEo2V1UP7i4H4O0PU",
+  authDomain: "chat-793e9.firebaseapp.com",
+  databaseURL: "https://chat-793e9-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "chat-793e9",
+  storageBucket: "chat-793e9.firebasestorage.app",
+  messagingSenderId: "174340876890",
+  appId: "1:174340876890:web:2d8eaf7888c597c1d00663"
+};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        
+        // 2. INITIALIZE AUTH AND SIGN IN SILENTLY
+        const auth = getAuth(app);
+
+console.log("STEP 1 - Starting Anonymous Login...");
+document.getElementById("loading-status").innerText = "Connecting...";
+
+signInAnonymously(auth)
+    .then((userCredential) => {
+        console.log("STEP 2 - Anonymous Login Success");
+        document.getElementById("loading-status").innerText = "Authenticating...";
+        console.log("Firebase UID:", userCredential.user.uid);
+        console.log("STEP 2.5 - Starting Ban Check");
+        document.getElementById("loading-status").innerText = "Checking access...";
+        const banRef = ref(db, `banned_users/${myUid}`);
+        onValue(banRef, (snapshot) => {
+            if (snapshot.exists() && snapshot.val() === true) {
+                // Wipe the entire app from the screen and show ban notice
+                document.getElementById("app-body").innerHTML = `
+                    <div class="h-screen w-screen flex flex-col items-center justify-center p-6 bg-slate-900">
+                        <div class="bg-slate-800 border border-red-500/50 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl flex flex-col items-center">
+                            <span class="text-6xl mb-4">⛔</span>
+                            <h1 class="text-3xl font-bold text-red-500 mb-2">Access Denied</h1>
+                            <p class="text-slate-300 text-sm leading-relaxed mb-6">Your device has been permanently banned from this chat room due to a violation of the rules.</p>
+                            <span class="text-[10px] text-slate-500 font-mono bg-slate-900 px-3 py-1 rounded-full border border-slate-700">Ref ID: ${myUid}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Show app if not banned
+                console.timeEnd("Ban Check");
+console.log("App Visible");
+                // Show the main app
+document.getElementById("main-app-container").classList.remove("hidden");
+
+// Hide loading screen
+document.getElementById("loading-status").innerText = "✅ Ready!";
+
+const loading = document.getElementById("loading-screen");
+
+loading.style.transition = "opacity 0.35s ease";
+loading.style.opacity = "0";
+
+setTimeout(() => {
+    loading.style.display = "none";
+}, 350);
+                onChildAdded(messagesRef, (snapshot) => renderOrUpdateMessage(snapshot.key, snapshot.val()));
+        onChildChanged(messagesRef, (snapshot) => renderOrUpdateMessage(snapshot.key, snapshot.val()));
+        onChildRemoved(messagesRef, (snapshot) => {
+            const msgElement = document.getElementById(`msg-${snapshot.key}`);
+            if (msgElement) msgElement.remove();
+            delete window.messageDataCache[snapshot.key];
+        });
+            }
+        });
+        // ---------- START PRESENCE AFTER LOGIN ----------
+const connectionId = Math.random().toString(36).substring(2, 9);
+
+console.log("STEP 3 - Connecting Presence...");
+document.getElementById("loading-status").innerText = "Joining chat room...";
+
+const presenceRef = ref(db, "presence/" + connectionId);
+
+set(presenceRef, myUid)
+    .then(() => {
+        console.log("STEP 4 - Presence Connected");
+        document.getElementById("loading-status").innerText = "Ready!";
+    })
+    .catch((err) => {
+        console.error("STEP 4 - Presence FAILED");
+        console.error(err);
+    });
+
+onDisconnect(presenceRef).remove();
+
+onValue(ref(db, "presence"), (snap) => {
+    if (snap.exists()) {
+        const activeUids = new Set(Object.values(snap.val()));
+        document.getElementById("user-count").innerText =
+            `${activeUids.size} online`;
+    } else {
+        document.getElementById("user-count").innerText = "1 online";
+    }
+});
+// ---------- END PRESENCE ----------
+    })
+    .catch((error) => {
+        console.error("STEP 2 - Anonymous Login FAILED");
+        console.error(error);
+    });
+
+        // ... Keep the rest of your existing code below this!
+        const myUid = localStorage.getItem("anon_uid") || Math.random().toString(36).substring(2, 9);
+        localStorage.setItem("anon_uid", myUid);
+
+        // --- V2.5 BAN ENFORCER ENGINE ---
+        // This instantly checks if the user's UID is on the blacklist.
+        console.time("Ban Check");
+        
+
+        // ------------------------------------------
+        // EVERYTHING BELOW IS THE SAME AS V1.10
+        // ------------------------------------------
+
+        let activeReplyTarget = null;
+        let targetedMenuMsgId = null;
+        let activeEditMsgId = null;
+        let pendingImageUpload = null;
+        let pendingAvatarUpload = null;
+        
+        const currentUser = { name: "", color: "", avatar: "" };
+        window.messageDataCache = {};
+
+        const adjectives = ["Friendly", "Happy", "Silent", "Chilled", "Funky", "Groovy", "Mystic", "Swift", "Calm", "Cosmic"];
+        const nouns = ["Tiger", "Eagle", "Bear", "Fox", "Panda", "Shark", "Wolf", "Owl", "Koala", "Lion"];
+        const colors = ["#f87171", "#fb923c", "#fbbf24", "#34d399", "#2dd4bf", "#38bdf8", "#818cf8", "#c084fc", "#f472b6"];
+
+        const bannedWords = ["spamword1", "spamword2", "offensiveword"]; 
+        function filterText(text) {
+            let filtered = text;
+            bannedWords.forEach(word => {
+                const regex = new RegExp(word, "gi");
+                filtered = filtered.replace(regex, "****");
+            });
+            return filtered;
+        }
+
+        function compressImage(file, maxWidth, maxHeight, quality = 0.6) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = event => {
+                    if (file.type === 'image/gif') {
+                        if (file.size > 1024 * 1024) return reject("GIF is too large! Maximum allowed is 1MB.");
+                        return resolve(event.target.result);
+                    }
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > height) {
+                            if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+                        } else {
+                            if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                };
+            });
+        }
+
+        function getUploadCount() {
+            const today = new Date().toDateString();
+            let limitData = JSON.parse(localStorage.getItem('upload_limits')) || { date: today, count: 0 };
+            if (limitData.date !== today) limitData = { date: today, count: 0 };
+            return limitData;
+        }
+
+        function incrementUploadCount() {
+            const limitData = getUploadCount();
+            limitData.count++;
+            localStorage.setItem('upload_limits', JSON.stringify(limitData));
+            updateCounterUI();
+        }
+
+        function updateCounterUI() {
+            const count = getUploadCount().count;
+            document.getElementById("upload-counter").innerText = `Limits: ${count}/5 uploads today`;
+        }
+
+        function checkCanUpload() {
+            if (getUploadCount().count >= 5) {
+                alert("You have reached your daily limit of 5 media uploads. Try again tomorrow!");
+                return false;
+            }
+            return true;
+        }
+
+        function initializeIdentity() {
+            if (localStorage.getItem("anon_name")) {
+                currentUser.name = localStorage.getItem("anon_name");
+                currentUser.color = localStorage.getItem("anon_color");
+                currentUser.avatar = localStorage.getItem("anon_avatar") || "";
+            } else {
+                currentUser.name = `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]}`;
+                currentUser.color = colors[Math.floor(Math.random() * colors.length)];
+                localStorage.setItem("anon_name", currentUser.name);
+                localStorage.setItem("anon_color", currentUser.color);
+            }
+            updateIdentityUI();
+        }
+
+        function updateIdentityUI() {
+            const tag = document.getElementById("identity-tag");
+            tag.innerText = currentUser.name;
+            tag.style.backgroundColor = currentUser.color;
+            
+            const sidebarAvatar = document.getElementById("sidebar-avatar");
+            if (currentUser.avatar) {
+                sidebarAvatar.innerHTML = `<img src="${currentUser.avatar}" class="w-full h-full object-cover">`;
+            } else {
+                sidebarAvatar.style.backgroundColor = currentUser.color;
+                sidebarAvatar.innerHTML = `<span class="text-[10px] font-bold text-slate-900">${currentUser.name.charAt(0)}</span>`;
+            }
+            updateCounterUI();
+        }
+
+        const renameModal = document.getElementById("rename-modal");
+        const modalNicknameInput = document.getElementById("modal-nickname-input");
+        const modalAvatarPreview = document.getElementById("modal-avatar-preview");
+        const modalAvatarInput = document.getElementById("modal-avatar-input");
+
+        document.getElementById("open-rename-btn").addEventListener("click", () => {
+            modalNicknameInput.value = currentUser.name;
+            pendingAvatarUpload = currentUser.avatar; 
+            if (pendingAvatarUpload) {
+                modalAvatarPreview.innerHTML = `<img src="${pendingAvatarUpload}" class="w-full h-full object-cover">`;
+            } else {
+                modalAvatarPreview.innerHTML = `<span class="text-xl">👤</span>`;
+            }
+            renameModal.classList.remove("hidden");
+        });
+
+        document.getElementById("close-modal-btn").addEventListener("click", () => renameModal.classList.add("hidden"));
+        
+        modalAvatarInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                pendingAvatarUpload = await compressImage(file, 150, 150, 0.7);
+                modalAvatarPreview.innerHTML = `<img src="${pendingAvatarUpload}" class="w-full h-full object-cover">`;
+            } catch (err) {
+                alert(err);
+            }
+        });
+
+        document.getElementById("save-modal-btn").addEventListener("click", () => {
+            const proposedInput = modalNicknameInput.value.trim();
+            if (!proposedInput) return;
+            currentUser.name = filterText(proposedInput);
+            currentUser.avatar = pendingAvatarUpload;
+            
+            localStorage.setItem("anon_name", currentUser.name);
+            localStorage.setItem("anon_avatar", currentUser.avatar);
+            
+            updateIdentityUI();
+            renameModal.classList.add("hidden");
+        });
+
+        const chatImageInput = document.getElementById("chat-image-input");
+        const imagePreviewContainer = document.getElementById("image-preview-container");
+        const imagePreviewElement = document.getElementById("image-preview");
+        const sendBtn = document.getElementById("send-btn");
+
+        chatImageInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (!checkCanUpload()) {
+                chatImageInput.value = "";
+                return;
+            }
+
+            sendBtn.innerText = "⏳";
+            sendBtn.disabled = true;
+
+            try {
+                pendingImageUpload = await compressImage(file, 800, 800, 0.6);
+                imagePreviewElement.src = pendingImageUpload;
+                imagePreviewContainer.classList.remove("hidden");
+            } catch (err) {
+                alert(err);
+                clearImagePreview();
+            } finally {
+                sendBtn.innerText = "Send";
+                sendBtn.disabled = false;
+                chatImageInput.value = "";
+            }
+        });
+
+        function clearImagePreview() {
+            pendingImageUpload = null;
+            imagePreviewElement.src = "";
+            imagePreviewContainer.classList.add("hidden");
+        }
+        document.getElementById("cancel-image-btn").addEventListener("click", clearImagePreview);
+
+        const editModal = document.getElementById("edit-modal");
+        const editInput = document.getElementById("modal-edit-input");
+
+        window.openEditModal = function(msgId) {
+            const data = window.messageDataCache[msgId];
+            if (!data) return;
+            activeEditMsgId = msgId;
+            editInput.value = data.text;
+            editModal.classList.remove("hidden");
+            editInput.focus();
+        };
+
+        document.getElementById("close-edit-btn").addEventListener("click", () => {
+            editModal.classList.add("hidden");
+            activeEditMsgId = null;
+        });
+
+        document.getElementById("save-edit-btn").addEventListener("click", () => {
+            const newText = editInput.value.trim();
+            if (!newText || !activeEditMsgId) return;
+            const cleanText = filterText(newText);
+            if (cleanText !== window.messageDataCache[activeEditMsgId].text) {
+                update(ref(db, `messages/${activeEditMsgId}`), { text: cleanText, edited: true });
+            }
+            editModal.classList.add("hidden");
+            activeEditMsgId = null;
+        });
+
+        window.deleteMessage = function(msgId) {
+            if (confirm("Are you sure you want to completely delete this message?")) {
+                set(ref(db, `messages/${msgId}`), null);
+            }
+        };
+
+        const chatBox = document.getElementById("chat-box");
+        const pickerMenu = document.getElementById("reaction-picker");
+        const messageForm = document.getElementById("message-form");
+        const messageInput = document.getElementById("message-input");
+        const messagesRef = ref(db, "messages");
+        
+
+        messageForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const textRaw = messageInput.value.trim();
+            
+            if (!textRaw && !pendingImageUpload) return;
+
+            const messagePayload = {
+    name: currentUser.name,
+    color: currentUser.color,
+    avatar: currentUser.avatar || null,
+
+    // Device identity (used for presence and device bans)
+    uid: myUid,
+
+    // Firebase identity (used for ownership/security)
+    authUid: auth.currentUser.uid,
+
+    timestamp: serverTimestamp()
+};
+
+            if (textRaw) messagePayload.text = filterText(textRaw);
+            if (pendingImageUpload) {
+                messagePayload.image = pendingImageUpload;
+                incrementUploadCount(); 
+            }
+            if (activeReplyTarget) messagePayload.replyTo = activeReplyTarget;
+
+            push(messagesRef, messagePayload);
+            clearReplyState();
+            clearImagePreview();
+            messageForm.reset();
+        });
+
+        window.setReplyTarget = function(msgId, senderName, rawText) {
+            activeReplyTarget = { id: msgId, name: senderName, text: rawText || 'Attachment' };
+            document.getElementById("reply-target-name").innerText = senderName;
+            document.getElementById("reply-target-text").innerText = rawText || 'Attached Image';
+            document.getElementById("reply-preview").classList.remove("hidden");
+            messageInput.focus();
+        };
+
+        function clearReplyState() {
+            activeReplyTarget = null;
+            document.getElementById("reply-preview").classList.add("hidden");
+        }
+        document.getElementById("cancel-reply-btn").addEventListener("click", clearReplyState);
+
+        window.openReactionMenu = function(msgId, clientX, clientY, currentActiveEmoji) {
+            targetedMenuMsgId = msgId;
+            const quickOptions = ["👍", "❤️", "😂"];
+            quickOptions.forEach(emoji => {
+                const btn = document.getElementById(`btn-react-${emoji}`);
+                if (emoji === currentActiveEmoji) {
+                    btn.className = "w-8 h-8 flex items-center justify-center rounded-full text-base bg-emerald-600 border border-emerald-400 scale-110 text-white font-bold transition cursor-pointer animate-pulse";
+                } else {
+                    btn.className = "w-8 h-8 flex items-center justify-center rounded-full text-base hover:bg-slate-700/60 transition cursor-pointer text-slate-300";
+                }
+            });
+            pickerMenu.style.left = `${Math.min(clientX, window.innerWidth - 160)}px`;
+            pickerMenu.style.top = `${Math.min(clientY - 50, window.innerHeight - 100)}px`;
+            pickerMenu.classList.remove("hidden");
+        };
+
+        window.handlePickerSelection = function(emoji) {
+            if (!targetedMenuMsgId) return;
+            const msgId = targetedMenuMsgId;
+            const targetMessageBubble = document.getElementById(`msg-${msgId}`).querySelector('.interactive-bubble');
+            const priorReaction = targetMessageBubble.getAttribute('data-my-reaction');
+            const quickOptions = ["👍", "❤️", "😂"];
+            quickOptions.forEach(opt => { set(ref(db, `messages/${msgId}/reactions/${opt}/${myUid}`), null); });
+            if (emoji !== priorReaction) { set(ref(db, `messages/${msgId}/reactions/${emoji}/${myUid}`), true); }
+            closeReactionMenu();
+        };
+
+        function closeReactionMenu() {
+            pickerMenu.classList.add("hidden");
+            targetedMenuMsgId = null;
+        }
+
+        document.addEventListener("click", (e) => {
+            if (!pickerMenu.contains(e.target) && !e.target.closest('.interactive-bubble')) closeReactionMenu();
+        });
+
+        function renderOrUpdateMessage(msgId, data) {
+            if (!data) return;
+            window.messageDataCache[msgId] = data;
+            
+            let msgElement = document.getElementById(`msg-${msgId}`);
+            const isNew = !msgElement;
+            if (isNew) {
+                msgElement = document.createElement("div");
+                msgElement.id = `msg-${msgId}`;
+            }
+
+            const isMe = data.authUid
+    ? (data.authUid === auth.currentUser.uid)
+    : (data.uid === myUid);
+            
+            let activePillsHtml = "";
+            let userReactionMatch = "";
+            if (data.reactions) {
+                Object.keys(data.reactions).forEach(emoji => {
+                    const count = Object.keys(data.reactions[emoji]).length;
+                    if (count > 0) {
+                        const hasMine = data.reactions[emoji][myUid];
+                        if (hasMine) userReactionMatch = emoji;
+                        const pillClass = hasMine ? "bg-emerald-950/80 border-emerald-500 text-emerald-400 font-bold" : "bg-slate-800 border-slate-700 text-slate-400";
+                        activePillsHtml += `<div class="flex items-center gap-1 border rounded-full px-1.5 py-0.5 text-[10px] shadow-xs select-none ${pillClass}"><span>${emoji}</span><span>${count}</span></div>`;
+                    }
+                });
+            }
+
+            let replyContextHtml = "";
+            if (data.replyTo) {
+                replyContextHtml = `
+                    <div class="border-l-2 border-slate-500 bg-slate-900/40 px-2 py-0.5 rounded text-[11px] text-slate-400 mb-0.5 italic text-left truncate w-full max-w-xs select-none">
+                        <span class="text-slate-300 font-bold not-italic block text-[10px]">${data.replyTo.name}:</span>
+                        "${data.replyTo.text}"
+                    </div>
+                `;
+            }
+
+            let userAvatarHtml = data.avatar 
+                ? `<img src="${data.avatar}" class="w-7 h-7 rounded-full object-cover shadow-sm flex-shrink-0 relative top-0.5 border border-slate-700/50" alt="${data.name}">`
+                : `<div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs text-slate-900 select-none shadow-sm flex-shrink-0 relative top-0.5" style="background-color: ${data.color}">${data.name.charAt(0)}</div>`;
+
+            let attachedImageHtml = data.image 
+                ? `<div class="${data.text ? 'mt-2' : ''}"><img src="${data.image}" class="max-w-full max-h-64 rounded-lg object-contain shadow-sm border border-black/20"></div>`
+                : "";
+
+            const bubbleRowClass = isMe ? "flex gap-2 items-start max-w-full flex-row-reverse text-right justify-start" : "flex gap-2 items-start max-w-full justify-start";
+            const bubbleAlignClass = isMe ? "items-end" : "items-start";
+            const colorBubbleClass = isMe ? "bg-emerald-600 border border-emerald-500/50 text-white" : "bg-slate-800 border border-slate-700/50 text-slate-200";
+            const editedTag = data.edited ? `<span class="text-[9px] text-emerald-200/70 italic ml-1 select-none">(edited)</span>` : "";
+            
+            let textHtml = data.text ? `<span>${data.text}</span>${editedTag}` : "";
+
+            let actionButtons = "";
+            if (isMe) {
+                if(data.text) {
+                    actionButtons += `<button onclick="openEditModal('${msgId}')" class="text-[9px] text-slate-500 hover:text-emerald-400 transition cursor-pointer opacity-80 md:opacity-0 group-hover:opacity-100">✏️ Edit</button>`;
+                }
+                actionButtons += `<button onclick="deleteMessage('${msgId}')" class="text-[9px] text-slate-500 hover:text-red-400 transition cursor-pointer opacity-80 md:opacity-0 group-hover:opacity-100">🗑️ Delete</button>`;
+            }
+
+            msgElement.className = `${bubbleRowClass} group mb-1`;
+            msgElement.innerHTML = `
+                ${userAvatarHtml}
+                <div class="flex flex-col max-w-[80%] min-w-0 ${bubbleAlignClass}">
+                    <div class="flex items-center gap-1.5 mb-0.5 select-none leading-none">
+                        <span class="text-[11px] font-semibold ${isMe ? 'text-emerald-400' : 'text-slate-400'} truncate">${data.name} ${isMe ? '(You)' : ''}</span>
+                        ${actionButtons}
+                        <button onclick="setReplyTarget('${msgId}', '${data.name.replace(/'/g, "\\'")}', '${(data.text || 'Image').replace(/'/g, "\\'")}')" class="text-[9px] text-slate-500 hover:text-emerald-400 transition context-reply-trigger cursor-pointer opacity-80 md:opacity-0 group-hover:opacity-100">💬 Reply</button>
+                    </div>
+                    ${replyContextHtml}
+                    <div class="interactive-bubble ${colorBubbleClass} rounded-2xl rounded-tl-none px-3 py-1.5 text-sm break-words shadow-sm text-left whitespace-pre-wrap relative cursor-pointer chat-bubble-text leading-tight inline-block w-fit max-w-full" data-my-reaction="${userReactionMatch}">${textHtml}${attachedImageHtml}</div>
+                    ${activePillsHtml ? `<div class="flex items-center gap-1 mt-0.5">${activePillsHtml}</div>` : ""}
+                </div>
+            `;
+
+            if (isNew) {
+                chatBox.appendChild(msgElement);
+                const imgElements = msgElement.querySelectorAll('img');
+                if (imgElements.length > 0) {
+                    imgElements[0].onload = () => { chatBox.scrollTop = chatBox.scrollHeight; };
+                } else {
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            }
+
+            const bubbleElement = msgElement.querySelector('.interactive-bubble');
+            let longPressTimer;
+            const freshBubble = bubbleElement.cloneNode(true);
+            bubbleElement.parentNode.replaceChild(freshBubble, bubbleElement);
+
+            freshBubble.addEventListener('touchstart', (e) => {
+                longPressTimer = setTimeout(() => {
+                    const touch = e.touches[0];
+                    const activeStateEmoji = freshBubble.getAttribute('data-my-reaction');
+                    openReactionMenu(msgId, touch.clientX, touch.clientY, activeStateEmoji);
+                }, 400); 
+            });
+            freshBubble.addEventListener('touchend', () => clearTimeout(longPressTimer));
+            freshBubble.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+
+            freshBubble.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const activeStateEmoji = freshBubble.getAttribute('data-my-reaction');
+                openReactionMenu(msgId, e.clientX, e.clientY, activeStateEmoji);
+            });
+        }
+
+        console.time("Identity");
+initializeIdentity();
+console.timeEnd("Identity");
+    </script>
+</body>
+</html>
